@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+
+# Dockerコンテナが起動しているか確認
+if ! docker-compose ps | grep -q "app.*Up"; then
+  echo "⚠️  Dockerコンテナが起動していません。起動してから再度コミットしてください。"
+  echo "実行: docker-compose up -d"
+  exit 1
+fi
+
+echo "🔍 Running linter..."
+docker-compose exec -T app pnpm lint || exit 1
+
+echo "✨ Running formatter..."
+docker-compose exec -T app pnpm format || exit 1
+
+echo "🧪 Running tests..."
+docker-compose exec -T app pnpm test --passWithNoTests || exit 1
+
+echo "✅ All checks passed!"
