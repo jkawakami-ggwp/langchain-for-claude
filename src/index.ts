@@ -28,17 +28,9 @@ const run = async (): Promise<void> => {
     });
 
     // 応答メッセージの配列から最後のAIメッセージを取得
-    // _getTypeメソッドまたはコンストラクタ名でAIMessageを判定
     const lastAiMessage = [...response.messages]
       .reverse() // 配列を逆順にして最後のメッセージから検索
-      .find((msg) => {
-        // LangChainのメッセージオブジェクトの型を確認
-        return (
-          msg instanceof AIMessage ||
-          msg.constructor.name === 'AIMessage' ||
-          (msg as any)._getType?.() === 'ai'
-        );
-      }) as AIMessage | undefined;
+      .find((msg) => msg.constructor.name === 'AIMessage') as AIMessage | undefined;
 
     // contentが配列の場合は文字列に変換、文字列の場合はそのまま使用
     const content = lastAiMessage?.content
