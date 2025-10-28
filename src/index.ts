@@ -32,15 +32,13 @@ const run = async (): Promise<void> => {
       .reverse() // 配列を逆順にして最後のメッセージから検索
       .find((msg) => msg.constructor.name === 'AIMessage') as AIMessage | undefined;
 
-    // contentが配列の場合は文字列に変換、文字列の場合はそのまま使用
-    const content = lastAiMessage?.content
-      ? typeof lastAiMessage.content === 'string'
-        ? lastAiMessage.content
-        : JSON.stringify(lastAiMessage.content, null, 2)
-      : '(応答なし)';
+    // 最終的なAI応答を表示（agent.invoke()がツール実行まで完了するため、常にstringのはず）
+    if (!lastAiMessage?.content) {
+      console.log('(応答なし)');
+      return;
+    }
 
-    // 結果をコンソールに出力
-    console.log(content);
+    console.log(lastAiMessage.content);
   } catch (error) {
     console.error('エラーが発生しました:', error);
   }
