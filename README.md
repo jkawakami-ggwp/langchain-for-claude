@@ -1,26 +1,23 @@
 # LangChain Claude プロジェクト
 
-Anthropic Claude API を直接叩く LangChain × TypeScript サンプルです。エージェントは LangChain のツール機能に対応しており、Claude 3.5 Sonnet をデフォルトモデルとして利用します。
+LangChain の `createAgent` 関数を使用して Claude と連携する TypeScript サンプルです。エージェントは LangChain のツール機能に対応しており、Claude 3.7 Sonnet をデフォルトモデルとして利用します。
 
 ## 主な特徴
-- **Claudeネイティブ**: Bedrock を経由せずに Anthropic API を直接利用
-- **LangChain Agent**: ツール呼び出しに対応したシンプルなエージェント構成
-- **TypeScript**: 型安全にサンプルを拡張可能
-- **CLI / ランタイム共通**: `pnpm dev` で即動作を確認可能
+- **LangChain Agent**: `createAgent` を使用したシンプルなエージェント構成
+- **ツール対応**: Zod スキーマを使用した型安全なツール定義
+- **TypeScript**: 完全な型安全性でサンプルを拡張可能
+- **Docker対応**: Docker Compose による開発環境を提供
 
 ## 前提条件
 - Node.js 18 以上
-- Anthropic アカウントと API キー
-- `pnpm` もしくは `npm`
+- pnpm（パッケージマネージャー）
+- Docker & Docker Compose（Docker環境を使用する場合）
 
 ## セットアップ
 
 ```bash
 git clone <repository-url>
 cd langchain-claude-project
-
-# 依存関係のインストール
-pnpm install      # または npm install
 
 # 環境変数のセットアップ
 cp env.example .env
@@ -29,14 +26,24 @@ cp env.example .env
 `.env` に以下を設定してください。
 
 ```dotenv
+# Anthropic設定
 ANTHROPIC_API_KEY=your_api_key
-CLAUDE_MODEL=claude-3-5-sonnet-20240620 # 任意。未設定時はこの値が使用されます
+CLAUDE_MODEL=claude-3-7-sonnet-20250219
+
+# アプリケーション設定
 NODE_ENV=development
 ```
 
+**注意**: `ANTHROPIC_API_KEY` は必須です。Anthropic ダッシュボードで API キーを発行してください。
+
 ## 実行方法
 
+### ローカル環境での実行
+
 ```bash
+# 依存関係のインストール（初回のみ）
+pnpm install
+
 # TypeScriptのまま即実行
 pnpm dev
 
@@ -45,17 +52,69 @@ pnpm build
 pnpm start
 ```
 
+### Docker環境での実行
+
+```bash
+# コンテナを起動
+docker-compose up -d
+
+# コンテナ内でコマンドを実行
+docker-compose exec app pnpm run dev
+```
+
 コンソールには Claude からの応答が表示されます。`src/index.ts` の `message` やシステムプロンプト、利用するツールを編集することで挙動をカスタマイズできます。
 
 ## ツールの追加
 
-`src/tools` 配下にツールを定義し、`src/tools/index.ts` の配列に追加するとエージェントが利用できるようになります。`getWeatherTool.ts` は最小構成の例です。
+`src/tools` 配下にツールを定義し、`src/tools/index.ts` の配列に追加するとエージェントが利用できるようになります。
+
+### ツールの定義例
+
+```typescript
+import { tool } from 'langchain';
+import { z } from 'zod';
+
+// Zodスキーマでツールの入力を定義
+const weatherSchema = z.object({
+  city: z.string(),
+});
+
+type WeatherInput = z.infer<typeof weatherSchema>;
+
+// ツールを作成
+export const getWeatherTool = tool<typeof weatherSchema>(
+  (input: WeatherInput) => {
+    const city = input.city;
+    return { content: `It's always sunny in ${city}!` };
+  },
+  {
+    name: 'get_weather',
+    description: 'Get the weather for a given city',
+    schema: weatherSchema,
+  }
+);
+```
 
 ## Docker環境での開発
 
+このプロジェクトでは Docker Compose を使用した開発環境を提供しています。
+
+### 基本的な使い方
+
+```bash
+# コンテナを起動
+docker-compose up -d
+
+# コンテナ内でコマンドを実行
+docker-compose exec app pnpm run dev
+
+# コンテナを停止
+docker-compose down
+```
+
 ### node_modulesについて
 
-このプロジェクトでは、エディタの型チェックとインテリセンスのためにホスト上にも `node_modules` が必要です。
+エディタの型チェックとインテリセンスのために、ホスト上にも `node_modules` をインストールすることを推奨します。
 
 ```bash
 # ホスト上でインストール（エディタ用）
@@ -64,7 +123,7 @@ pnpm install
 # コンテナを起動
 docker-compose up -d
 
-# コンテナ内でコマンドを実行する場合
+# コンテナ内で実行（実際の開発作業）
 docker-compose exec app pnpm run dev
 ```
 
@@ -82,23 +141,35 @@ docker-compose build
 docker-compose up -d
 ```
 
-**推奨**: ホスト側で `package.json` を編集してからコンテナを再ビルドすることで、両方の環境を同期できます。
-
 ## テスト & 品質チェック
 
+### ローカル環境
+
 ```bash
-pnpm test          # Jest
+pnpm test          # Jest テスト実行
+pnpm test:watch    # Jest ウォッチモード
+pnpm test:coverage # カバレッジレポート生成
 pnpm lint          # ESLint
-pnpm format:check  # Prettier
+pnpm lint:fix      # ESLint 自動修正
+pnpm format        # Prettier フォーマット
+pnpm format:check  # Prettier チェックのみ
+```
+
+### Docker環境
+
+```bash
+docker-compose exec app pnpm test
+docker-compose exec app pnpm lint
+docker-compose exec app pnpm format:check
 ```
 
 ## 環境変数リファレンス
 
-| 変数名 | 必須 | 説明 |
-| --- | --- | --- |
-| `ANTHROPIC_API_KEY` | ✅ | Anthropic ダッシュボードで発行した API キー |
-| `CLAUDE_MODEL` | ⬜️ | 使用するモデル ID。未指定なら `claude-3-5-sonnet-20240620` |
-| `NODE_ENV` | ⬜️ | Node.js の実行モード (`development` / `production` など) |
+| 変数名 | 必須 | 説明 | デフォルト値 |
+| --- | --- | --- | --- |
+| `ANTHROPIC_API_KEY` | ✅ | Anthropic ダッシュボードで発行した API キー | - |
+| `CLAUDE_MODEL` | ✅ | 使用するモデル ID | `claude-3-7-sonnet-20250219` |
+| `NODE_ENV` | ⬜️ | Node.js の実行モード | `development` |
 
 ## ライセンス
 
