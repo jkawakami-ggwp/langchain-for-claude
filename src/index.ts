@@ -8,7 +8,7 @@ loadEnv();
 // 非同期で実行されるメイン関数
 const run = async (): Promise<void> => {
   // エージェントに送信するメッセージを定義
-  const message = '東京の天気情報を教えてください。';
+  const message = '東京の現在時刻と天気を教えてください。';
 
   try {
     // モデルを使用してエージェントを作成
@@ -21,7 +21,9 @@ const run = async (): Promise<void> => {
     const response = await agent.invoke({
       messages: [
         // システムメッセージ: エージェントの役割や振る舞いを指示
-        new SystemMessage('あなたは親切なAIアシスタントです。必ず日本語で回答してください。'),
+        new SystemMessage(
+          'あなたは親切なAIアシスタントです。適切なツールを使用して回答してください。'
+        ),
         // 人間のメッセージ: ユーザーからの実際の質問やリクエスト
         new HumanMessage(message),
       ],
