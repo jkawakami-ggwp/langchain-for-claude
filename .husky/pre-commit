@@ -8,12 +8,24 @@ if ! docker-compose ps | grep -q "app.*Up"; then
 fi
 
 echo "🔍 Running linter..."
-docker-compose exec -T app pnpm lint || exit 1
+docker-compose exec -T app pnpm lint || {
+  echo "❌ リンターエラー: コードに問題があります"
+  echo "修正するには: pnpm lint --fix を実行してください"
+  exit 1
+}
 
-echo "✨ Running formatter..."
-docker-compose exec -T app pnpm format || exit 1
+echo "✨ Running formatter check..."
+docker-compose exec -T app npx prettier --check "src/**/*.{ts,js,json}" || {
+  echo "❌ フォーマットエラー: ファイルがフォーマットされていません"
+  echo "修正するには: pnpm format を実行してください"
+  exit 1
+}
 
 echo "🧪 Running tests..."
-docker-compose exec -T app pnpm test --passWithNoTests || exit 1
+docker-compose exec -T app pnpm test --passWithNoTests || {
+  echo "❌ テストエラー: テストが失敗しました"
+  echo "修正するには: テストコードを確認し、問題を修正してください"
+  exit 1
+}
 
 echo "✅ All checks passed!"
