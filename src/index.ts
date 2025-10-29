@@ -1,16 +1,20 @@
 import { config as loadEnv } from 'dotenv';
 import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { createAgent } from 'langchain';
-import { tools } from './tools';
+import { loadTools } from './tools';
 
 loadEnv();
 
 // 非同期で実行されるメイン関数
 const run = async (): Promise<void> => {
   // エージェントに送信するメッセージを定義
-  const message = '東京の現在時刻と天気を教えてください。';
+  const message =
+    '東京の現在時刻と天気を教えてください。あと、Amazon S3とは何ですか？また、主な機能について教えてください。';
 
   try {
+    // ツールを動的に読み込み
+    const tools = await loadTools();
+
     // モデルを使用してエージェントを作成
     const agent = createAgent({
       model: process.env['CLAUDE_MODEL'] as string,
