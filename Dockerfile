@@ -13,8 +13,8 @@ COPY package.json pnpm-lock.yaml* ./
 # 依存関係をインストール（開発用）
 RUN pnpm install
 
-# ポート3000を公開
-EXPOSE 3000
+# ポート8080を公開
+EXPOSE 8080
 
 # 開発用コマンドを実行
 CMD ["pnpm", "run", "dev"]

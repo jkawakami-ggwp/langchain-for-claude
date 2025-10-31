@@ -1,14 +1,26 @@
 import { config as loadEnv } from 'dotenv';
+import express, { Request, Response } from 'express';
 import { Agent } from './agent';
 import { loadTools } from './tools';
 
 loadEnv();
 
-// 非同期で実行されるメイン関数
-const run = async (): Promise<void> => {
-  // エージェントに送信するメッセージを定義
-  const message =
-    '東京の現在時刻と天気を教えてください。あと、Amazon S3とは何ですか？また、主な機能について教えてください。';
+const app = express();
+app.use(express.json());
+
+// ヘルスチェック用エンドポイント
+app.get('/ping', (_req: Request, res: Response) => {
+  res.send('pong');
+});
+
+// AIエージェントを呼び出すエンドポイント
+app.post('/invocations', async (req: Request, res: Response): Promise<void> => {
+  const { prompt } = req.body;
+
+  if (!prompt) {
+    res.status(400).json({ error: 'プロンプトが必要です' });
+    return;
+  }
 
   try {
     // ツールを読み込み
@@ -21,19 +33,28 @@ const run = async (): Promise<void> => {
     });
 
     // エージェントにメッセージを送信して応答を取得
-    const response = await agent.invoke(message);
+    const response = await agent.invoke(prompt);
 
-    // 応答を表示
+    // 応答を返す
     if (!response.content) {
-      console.log('(応答なし)');
+      res.json({ result: '(応答なし)' });
       return;
     }
 
-    console.log(response.content);
+    res.json({ result: response.content });
   } catch (error) {
     console.error('エラーが発生しました:', error);
+    res.status(500).json({
+      error: 'エージェントの実行中にエラーが発生しました',
+      details: error instanceof Error ? error.message : String(error),
+    });
   }
-};
+});
 
-// run関数を実行（voidで返り値を無視）
-void run();
+// サーバーを起動
+const PORT = process.env['PORT'] || 8080;
+app.listen(PORT, () => {
+  console.log(`サーバーがポート ${PORT} で起動しました`);
+  console.log(`ヘルスチェック: http://localhost:${PORT}/ping`);
+  console.log(`エージェント実行: POST http://localhost:${PORT}/invocations`);
+});

@@ -5,6 +5,7 @@ LangChain の `createAgent` 関数を使用して Claude と連携する TypeScr
 ## 主な特徴
 - **LangChain Agent**: `createAgent` を使用したシンプルなエージェント構成
 - **Agentクラス**: エージェントをラップした使いやすいクラスAPI
+- **Express REST API**: HTTPエンドポイント経由でエージェントを利用可能
 - **ツール対応**: Zod スキーマを使用した型安全なツール定義
 - **TypeScript**: 完全な型安全性でサンプルを拡張可能
 - **Docker対応**: Docker Compose による開発環境を提供
@@ -33,37 +34,71 @@ CLAUDE_MODEL=claude-3-7-sonnet-20250219
 
 # アプリケーション設定
 NODE_ENV=development
+PORT=8080
 ```
 
 **注意**: `ANTHROPIC_API_KEY` は必須です。Anthropic ダッシュボードで API キーを発行してください。
 
 ## 実行方法
 
-### ローカル環境での実行
+### REST API サーバーとして実行
+
+デフォルトでは、Expressサーバーとして起動します。
+
+#### ローカル環境での実行
 
 ```bash
 # 依存関係のインストール（初回のみ）
 pnpm install
 
-# TypeScriptのまま即実行
+# サーバーを起動
 pnpm dev
 
-# ビルド & 実行
+# または、ビルド後に実行
 pnpm build
 pnpm start
 ```
 
-### Docker環境での実行
+#### Docker環境での実行
 
 ```bash
-# コンテナを起動
+# コンテナを起動（自動的にサーバーが起動します）
 docker-compose up -d
 
-# コンテナ内でコマンドを実行
-docker-compose exec app pnpm run dev
+# ログを確認
+docker-compose logs -f app
 ```
 
-コンソールには Claude からの応答が表示されます。`src/index.ts` の `message` やシステムプロンプト、利用するツールを編集することで挙動をカスタマイズできます。
+サーバーが起動すると、以下のエンドポイントが利用可能になります：
+
+- **ヘルスチェック**: `GET http://localhost:8080/ping`
+- **エージェント実行**: `POST http://localhost:8080/invocations`
+
+#### API使用例
+
+```bash
+# ヘルスチェック
+curl http://localhost:8080/ping
+
+# エージェントにクエリを送信
+curl -X POST http://localhost:8080/invocations \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "東京の天気を教えてください"}'
+```
+
+### CLIモードで実行
+
+CLI形式で実行したい場合は、`src/cli.ts` を使用します。
+
+```bash
+# ローカル環境
+pnpm run cli
+
+# Docker環境
+docker-compose exec app pnpm run cli
+```
+
+コンソールには Claude からの応答が表示されます。`src/cli.ts` の `message` やシステムプロンプト、利用するツールを編集することで挙動をカスタマイズできます。
 
 ## Agentクラスの使い方
 
@@ -248,6 +283,7 @@ docker-compose exec app pnpm format:check
 | --- | --- | --- | --- |
 | `ANTHROPIC_API_KEY` | ✅ | Anthropic ダッシュボードで発行した API キー | - |
 | `CLAUDE_MODEL` | ✅ | 使用するモデル ID | `claude-3-7-sonnet-20250219` |
+| `PORT` | ⬜️ | Expressサーバーのポート番号 | `8080` |
 | `NODE_ENV` | ⬜️ | Node.js の実行モード | `development` |
 
 ## ライセンス
