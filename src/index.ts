@@ -1,6 +1,5 @@
 import { config as loadEnv } from 'dotenv';
-import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
-import { createAgent } from 'langchain';
+import { Agent } from './agent';
 import { loadTools } from './tools';
 
 loadEnv();
@@ -12,39 +11,25 @@ const run = async (): Promise<void> => {
     '東京の現在時刻と天気を教えてください。あと、Amazon S3とは何ですか？また、主な機能について教えてください。';
 
   try {
-    // ツールを動的に読み込み
+    // ツールを読み込み
     const tools = await loadTools();
 
-    // モデルを使用してエージェントを作成
-    const agent = createAgent({
+    // Agentクラスのインスタンスを作成
+    const agent = new Agent({
       model: process.env['CLAUDE_MODEL'] as string,
       tools,
     });
 
     // エージェントにメッセージを送信して応答を取得
-    const response = await agent.invoke({
-      messages: [
-        // システムメッセージ: エージェントの役割や振る舞いを指示
-        new SystemMessage(
-          'あなたは親切なAIアシスタントです。適切なツールを使用して回答してください。'
-        ),
-        // 人間のメッセージ: ユーザーからの実際の質問やリクエスト
-        new HumanMessage(message),
-      ],
-    });
+    const response = await agent.invoke(message);
 
-    // 応答メッセージの配列から最後のAIメッセージを取得
-    const lastAiMessage = [...response.messages]
-      .reverse() // 配列を逆順にして最後のメッセージから検索
-      .find((msg) => msg.constructor.name === 'AIMessage') as AIMessage | undefined;
-
-    // 最終的なAI応答を表示（agent.invoke()がツール実行まで完了するため、常にstringのはず）
-    if (!lastAiMessage?.content) {
+    // 応答を表示
+    if (!response.content) {
       console.log('(応答なし)');
       return;
     }
 
-    console.log(lastAiMessage.content);
+    console.log(response.content);
   } catch (error) {
     console.error('エラーが発生しました:', error);
   }

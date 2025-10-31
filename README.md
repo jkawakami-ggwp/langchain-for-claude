@@ -4,6 +4,7 @@ LangChain の `createAgent` 関数を使用して Claude と連携する TypeScr
 
 ## 主な特徴
 - **LangChain Agent**: `createAgent` を使用したシンプルなエージェント構成
+- **Agentクラス**: エージェントをラップした使いやすいクラスAPI
 - **ツール対応**: Zod スキーマを使用した型安全なツール定義
 - **TypeScript**: 完全な型安全性でサンプルを拡張可能
 - **Docker対応**: Docker Compose による開発環境を提供
@@ -63,6 +64,84 @@ docker-compose exec app pnpm run dev
 ```
 
 コンソールには Claude からの応答が表示されます。`src/index.ts` の `message` やシステムプロンプト、利用するツールを編集することで挙動をカスタマイズできます。
+
+## Agentクラスの使い方
+
+`Agent`クラスは、LangChainエージェントをラップした簡単に使えるAPIを提供します。
+
+### 基本的な使い方
+
+```typescript
+import { Agent } from './agent';
+import { loadTools } from './tools';
+
+// ツールを読み込み
+const tools = await loadTools();
+
+// エージェントのインスタンスを作成
+const agent = new Agent({
+  model: 'claude-3-7-sonnet-20250219',
+  tools,
+});
+
+// メッセージを送信して応答を取得
+const response = await agent.invoke('東京の天気を教えてください');
+console.log(response.content);
+```
+
+### 複数のメッセージを使用する
+
+```typescript
+import { HumanMessage, AIMessage } from '@langchain/core/messages';
+import { loadTools } from './tools';
+
+// ツールを読み込み
+const tools = await loadTools();
+
+const messages = [
+  new HumanMessage('こんにちは'),
+  new AIMessage('こんにちは！どのようにお手伝いできますか？'),
+  new HumanMessage('天気を教えてください'),
+];
+
+const agent = new Agent({
+  model: 'claude-3-7-sonnet-20250219',
+  tools,
+});
+
+const response = await agent.invokeWithMessages(messages);
+```
+
+### カスタムツールの追加
+
+```typescript
+import { tool } from 'langchain';
+import { z } from 'zod';
+import { loadTools } from './tools';
+
+// デフォルトのツールを読み込み
+const defaultTools = await loadTools();
+
+// カスタムツールを定義
+const myCustomTool = tool(
+  (input: { name: string }) => {
+    return `こんにちは、${input.name}さん！`;
+  },
+  {
+    name: 'greet',
+    description: 'ユーザーに挨拶する',
+    schema: z.object({
+      name: z.string().describe('ユーザーの名前'),
+    }),
+  }
+);
+
+// デフォルトツールとカスタムツールを組み合わせる
+const agent = new Agent({
+  model: 'claude-3-7-sonnet-20250219',
+  tools: [...defaultTools, myCustomTool],
+});
+```
 
 ## ツールの追加
 
