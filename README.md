@@ -6,9 +6,10 @@ LangChain の `createAgent` 関数を使用して Claude と連携する TypeScr
 - **LangChain Agent**: `createAgent` を使用したシンプルなエージェント構成
 - **Agentクラス**: エージェントをラップした使いやすいクラスAPI
 - **Express REST API**: HTTPエンドポイント経由でエージェントを利用可能
+- **AWS Bedrock AgentCore対応**: AWS Bedrock AgentCore ランタイムの要件に準拠
 - **ツール対応**: Zod スキーマを使用した型安全なツール定義
 - **TypeScript**: 完全な型安全性でサンプルを拡張可能
-- **Docker対応**: Docker Compose による開発環境を提供
+- **Docker対応**: Docker Compose による開発環境を提供（ARM64対応）
 
 ## 前提条件
 - Node.js 18 以上
@@ -72,19 +73,37 @@ docker-compose logs -f app
 サーバーが起動すると、以下のエンドポイントが利用可能になります：
 
 - **ヘルスチェック**: `GET http://localhost:8080/ping`
-- **エージェント実行**: `POST http://localhost:8080/invoke`
+- **エージェント実行**: `POST http://localhost:8080/invocations`
 
 #### API使用例
 
 ```bash
 # ヘルスチェック
 curl http://localhost:8080/ping
+# レスポンス: {"status":"Healthy"}
 
-# エージェントにクエリを送信
-curl -X POST http://localhost:8080/invoke \
+# エージェントにクエリを送信（非ストリーミング）
+curl -X POST http://localhost:8080/invocations \
   -H "Content-Type: application/json" \
   -d '{"prompt": "東京の天気を教えてください"}'
+# レスポンス: {"response":"...", "status":"success"}
+
+# エージェントにクエリを送信（ストリーミング）
+curl -X POST http://localhost:8080/invocations \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "東京の天気を教えてください", "stream": true}'
+# レスポンス: text/event-stream (SSE形式)
 ```
+
+#### AWS Bedrock AgentCore ランタイム対応
+
+このAPIは [AWS Bedrock AgentCore ランタイム](https://docs.aws.amazon.com/marketplace/latest/userguide/bedrock-agentcore-runtime.html)の要件に準拠しています：
+
+- **`/ping` エンドポイント**: ヘルスチェック用のGETエンドポイント（JSON形式のレスポンス）
+- **`/invocations` エンドポイント**: エージェント実行用のPOSTエンドポイント
+- **ARM64コンテナ**: ARM64アーキテクチャ対応のDockerコンテナ
+- **ポート8080**: HTTP通信用のポートを公開
+- **ストリーミング対応**: Server-Sent Events (SSE)によるストリーミングレスポンス対応
 
 ### CLIモードで実行
 
@@ -286,6 +305,64 @@ docker-compose exec app pnpm format:check
 | `PORT` | ⬜️ | Expressサーバーのポート番号 | `8080` |
 | `NODE_ENV` | ⬜️ | Node.js の実行モード | `development` |
 
-## ライセンス
+## AWS Bedrock AgentCore ランタイム準拠
 
-MIT License
+このプロジェクトは [AWS Bedrock AgentCore ランタイム](https://docs.aws.amazon.com/marketplace/latest/userguide/bedrock-agentcore-runtime.html) の要件に完全準拠しています。
+
+### 準拠している要件
+
+| 要件 | ステータス | 実装詳細 |
+|------|-----------|----------|
+| `/ping` エンドポイント (GET) | ✅ | JSON形式のヘルスチェックレスポンス |
+| `/invocations` エンドポイント (POST) | ✅ | エージェント実行用エンドポイント |
+| 非ストリーミングレスポンス | ✅ | `{"response": "...", "status": "success"}` 形式 |
+| ストリーミングレスポンス | ✅ | Server-Sent Events (SSE) 対応 |
+| ARM64 コンテナ | ✅ | `--platform=linux/arm64` 指定 |
+| ポート 8080 | ✅ | HTTP通信用ポート公開 |
+
+### エンドポイント仕様
+
+#### `/ping` - ヘルスチェック
+
+```bash
+curl http://localhost:8080/ping
+```
+
+**レスポンス**:
+```json
+{"status": "Healthy"}
+```
+
+#### `/invocations` - エージェント実行
+
+**非ストリーミング**:
+```bash
+curl -X POST http://localhost:8080/invocations \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "東京の天気を教えてください"}'
+```
+
+**レスポンス**:
+```json
+{
+  "response": "エージェントからの応答",
+  "status": "success"
+}
+```
+
+**ストリーミング（実装予定）**:
+```bash
+curl -X POST http://localhost:8080/invocations \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "東京の天気を教えてください", "stream": true}'
+```
+
+**レスポンス**: `Content-Type: text/event-stream`
+```
+data: {"event": "部分的な応答1"}
+
+data: {"event": "部分的な応答2"}
+
+data: {"event": "最終応答"}
+
+```

@@ -1,5 +1,5 @@
-# Node.js 20の最新LTSイメージを使用
-FROM node:20-alpine
+# Node.js 20の最新LTSイメージを使用（ARM64対応）
+FROM --platform=linux/arm64 node:20-alpine
 
 # 作業ディレクトリを設定
 WORKDIR /app
@@ -19,8 +19,8 @@ COPY . .
 # ビルド
 RUN pnpm build
 
-# ポート8080を公開
+# ポート8080を公開（AWS Bedrock AgentCore要件）
 EXPOSE 8080
 
-# 開発用コマンドを実行
+# 本番用コマンドを実行
 CMD ["pnpm", "start"]
