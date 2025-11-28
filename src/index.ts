@@ -14,7 +14,7 @@ app.get('/ping', (_req: Request, res: Response) => {
 });
 
 // AIエージェントを呼び出すエンドポイント
-app.post('/invocations', async (req: Request, res: Response): Promise<void> => {
+app.post('/invoke', async (req: Request, res: Response): Promise<void> => {
   const { prompt } = req.body;
 
   if (!prompt) {
@@ -37,11 +37,11 @@ app.post('/invocations', async (req: Request, res: Response): Promise<void> => {
 
     // 応答を返す
     if (!response.content) {
-      res.json({ result: '(応答なし)' });
+      res.json({ completion: '(応答なし)' });
       return;
     }
 
-    res.json({ result: response.content });
+    res.json({ completion: response.content });
   } catch (error) {
     console.error('エラーが発生しました:', error);
     res.status(500).json({
@@ -56,5 +56,5 @@ const PORT = process.env['PORT'] || 8080;
 app.listen(PORT, () => {
   console.log(`サーバーがポート ${PORT} で起動しました`);
   console.log(`ヘルスチェック: http://localhost:${PORT}/ping`);
-  console.log(`エージェント実行: POST http://localhost:${PORT}/invocations`);
+  console.log(`エージェント実行: POST http://localhost:${PORT}/invoke`);
 });

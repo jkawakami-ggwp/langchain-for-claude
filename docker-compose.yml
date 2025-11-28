@@ -7,4 +7,4 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
-    command: tail -f /dev/null
+    command: pnpm start

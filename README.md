@@ -72,7 +72,7 @@ docker-compose logs -f app
 サーバーが起動すると、以下のエンドポイントが利用可能になります：
 
 - **ヘルスチェック**: `GET http://localhost:8080/ping`
-- **エージェント実行**: `POST http://localhost:8080/invocations`
+- **エージェント実行**: `POST http://localhost:8080/invoke`
 
 #### API使用例
 
@@ -81,7 +81,7 @@ docker-compose logs -f app
 curl http://localhost:8080/ping
 
 # エージェントにクエリを送信
-curl -X POST http://localhost:8080/invocations \
+curl -X POST http://localhost:8080/invoke \
   -H "Content-Type: application/json" \
   -d '{"prompt": "東京の天気を教えてください"}'
 ```
