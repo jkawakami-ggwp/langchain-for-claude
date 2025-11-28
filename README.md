@@ -15,6 +15,8 @@ LangChain の `createAgent` 関数を使用して Claude と連携する TypeScr
 - Node.js 18 以上
 - pnpm（パッケージマネージャー）
 - Docker & Docker Compose（Docker環境を使用する場合）
+- AWS CLI（AWS環境にデプロイする場合）
+- AWS CDK（AWS環境にデプロイする場合）
 
 ## セットアップ
 
@@ -365,4 +367,240 @@ data: {"event": "部分的な応答2"}
 
 data: {"event": "最終応答"}
 
+```
+
+## AWS環境へのデプロイ
+
+このプロジェクトには、AWS CodePipeline を使用した CI/CD パイプラインが含まれています。
+
+### 前提条件
+
+- AWS CLI がインストールされ、設定されていること
+- AWS CDK がインストールされていること（`npm install -g aws-cdk`）
+- GitHubアカウントへのアクセス権限
+
+### 1. AWS CodeStar Connection の作成
+
+GitHub との接続を確立するために、AWS CodeStar Connection を作成します。
+
+#### 方法1: AWS CLI で作成
+
+```bash
+# GitHub へのConnection作成
+aws codestar-connections create-connection \
+  --provider-type GitHub \
+  --connection-name ts-langchain-agent-github \
+  --region ap-northeast-1
+
+# 作成されたConnection ARNをメモ
+# 出力例: arn:aws:codestar-connections:ap-northeast-1:123456789012:connection/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+```
+
+#### 方法2: AWS コンソールで作成
+
+1. [AWS CodeStar Connections](https://console.aws.amazon.com/codesuite/settings/connections) にアクセス
+2. 「接続を作成」をクリック
+3. プロバイダーとして「GitHub」を選択
+4. 接続名を入力（例: `ts-langchain-agent-github`）
+5. 「GitHub に接続」をクリック
+
+#### Connection の承認
+
+**重要**: Connectionを作成後、GitHubでの承認が必要です。
+
+1. AWS コンソールの Connections ページで作成した Connection を選択
+2. **「保留中の接続を更新」**（Update pending connection）をクリック
+3. GitHub にリダイレクトされるので、アクセスを承認
+4. リポジトリへのアクセス権限を付与（特定のリポジトリまたは全リポジトリ）
+5. ステータスが **「利用可能」**（Available）になることを確認
+
+#### Connection ARN の取得
+
+```bash
+# Connection ARN を確認
+aws codestar-connections list-connections --region ap-northeast-1
+```
+
+出力例：
+```json
+{
+  "Connections": [
+    {
+      "ConnectionName": "ts-langchain-agent-github",
+      "ConnectionArn": "arn:aws:codestar-connections:ap-northeast-1:123456789012:connection/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "ProviderType": "GitHub",
+      "ConnectionStatus": "AVAILABLE"
+    }
+  ]
+}
+```
+
+### 2. CDK Context の設定
+
+`infra/cdk.context.json` を作成し、以下の内容を記述します：
+
+```json
+{
+  "githubOwner": "your-github-username",
+  "githubRepo": "ts-langchain-agent",
+  "githubBranch": "main",
+  "codestarConnectionArn": "arn:aws:codestar-connections:ap-northeast-1:YOUR_ACCOUNT_ID:connection/YOUR_CONNECTION_ID"
+}
+```
+
+**重要**: 
+- `codestarConnectionArn` には、前のステップで取得した Connection ARN を設定してください
+- `cdk.context.json` は `.gitignore` に追加されているため、リポジトリにコミットされません
+
+### 3. CDK スタックのデプロイ
+
+```bash
+cd infra
+
+# 依存関係のインストール
+npm install
+
+# CDK Bootstrap（初回のみ）
+cdk bootstrap
+
+# スタックのデプロイ
+cdk deploy
+```
+
+### 4. デプロイされるリソース
+
+- **CodeStar Connection**: GitHub との接続
+- **ECR Repository**: Docker イメージを保存
+- **CodeBuild Project**: Docker イメージのビルドと ECR へのプッシュ
+- **CodePipeline**: GitHub からのソースコード取得とビルドの自動化
+
+### CI/CD パイプラインの動作
+
+1. GitHub の `main` ブランチにプッシュ
+2. CodePipeline が自動的にトリガー（CodeStar Connection 経由）
+3. CodeBuild が Docker イメージをビルド
+4. ビルドしたイメージを ECR にプッシュ
+
+### Connection の管理
+
+#### Connection の確認
+
+```bash
+# Connection一覧を表示
+aws codestar-connections list-connections --region ap-northeast-1
+
+# 特定のConnectionの詳細を表示
+aws codestar-connections get-connection \
+  --connection-arn "arn:aws:codestar-connections:ap-northeast-1:123456789012:connection/xxx" \
+  --region ap-northeast-1
+```
+
+#### Connection の削除（必要に応じて）
+
+```bash
+aws codestar-connections delete-connection \
+  --connection-arn "arn:aws:codestar-connections:ap-northeast-1:123456789012:connection/xxx" \
+  --region ap-northeast-1
+```
+
+### CodeStar Connection の利点
+
+- **セキュリティ**: Personal Access Token を使用せず、OAuth ベースの認証
+- **簡単な管理**: AWS がトークンのローテーションを自動処理
+- **マルチプロバイダー対応**: GitHub、Bitbucket、GitLab をサポート
+- **追加料金なし**: CodePipeline の利用料金のみ（Connection 自体は無料）
+
+## トラブルシューティング
+
+### CDKデプロイ時の「ResourceExistenceCheck」エラー
+
+#### エラー内容
+```
+❌  CicdPipelineStack failed: ToolkitError: Failed to create ChangeSet cdk-deploy-change-set on CicdPipelineStack: FAILED, 
+The following hook(s)/validation failed: [AWS::EarlyValidation::ResourceExistenceCheck]
+```
+
+#### 原因
+CodeStar Connectionsの接続が以下のいずれかの状態にあります:
+1. **PENDING（保留中）**: GitHubアプリの承認が完了していない
+2. **存在しない**: 指定されたARNの接続が存在しない
+3. **削除済み**: 以前作成した接続が削除されている
+
+#### 解決方法
+
+##### ステップ1: 接続の状態を確認
+
+1. AWS Management Consoleにアクセス:
+   ```
+   https://ap-northeast-1.console.aws.amazon.com/codesuite/settings/connections
+   ```
+
+2. 接続リストで該当の接続を探す
+   - 接続名またはARNで検索
+   - ステータス列を確認（「利用可能」であるべき）
+
+##### ステップ2: 接続が「保留中」の場合
+
+1. 該当の接続をクリック
+2. 「接続を更新」ボタンをクリック
+3. GitHubの認証画面で「Authorize AWS Connector for GitHub」をクリック
+4. 対象のリポジトリまたは組織へのアクセスを許可
+5. ステータスが「利用可能」になるまで待つ（通常は数秒）
+
+##### ステップ3: 接続が存在しない場合
+
+新しい接続を作成します:
+
+1. 「接続を作成」ボタンをクリック
+2. 以下の設定を入力:
+   - **プロバイダー**: GitHub
+   - **接続名**: `github-ts-langchain-agent`（任意の名前）
+   - **GitHub Apps**: 「新しいアプリをインストール」を選択
+3. GitHubの認証画面で以下を実施:
+   - AWS Connector for GitHubアプリをインストール
+   - アクセスを許可するリポジトリを選択（`jkawakami-ggwp/ts-langchain-agent`）
+4. 接続が作成されたら、ARNをコピー
+5. `infra/cdk.context.json`の`codestarConnectionArn`を新しいARNに更新:
+
+```json
+{
+  "githubOwner": "jkawakami-ggwp",
+  "githubRepo": "ts-langchain-agent",
+  "githubBranch": "main",
+  "codestarConnectionArn": "arn:aws:codestar-connections:ap-northeast-1:886436930346:connection/<新しいID>"
+}
+```
+
+##### ステップ4: 再デプロイ
+
+```bash
+cd infra
+cdk deploy
+```
+
+### その他のよくあるエラー
+
+#### エラー: 「No credentials found」
+
+AWS CLIの認証情報が設定されていません。
+
+```bash
+# プロファイルが設定されているか確認
+aws configure list
+
+# プロファイルを設定
+aws configure
+```
+
+#### エラー: 「Stack already exists」
+
+スタックが既に存在する場合、更新デプロイが必要です。
+
+```bash
+# 変更内容を確認
+cdk diff
+
+# デプロイ
+cdk deploy
+```
 ```

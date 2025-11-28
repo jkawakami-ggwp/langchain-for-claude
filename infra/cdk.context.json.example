@@ -1,0 +1,6 @@
+{
+  "githubOwner": "your-github-username",
+  "githubRepo": "your-repository-name",
+  "githubBranch": "main",
+  "codestarConnectionArn": "arn:aws:codeconnections:ap-northeast-1:123456789012:connection/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+}
