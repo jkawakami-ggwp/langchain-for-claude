@@ -34,7 +34,8 @@ export class CicdPipelineStack extends cdk.Stack {
       // ここでは infra/buildspec.yml を利用する
       buildSpec: codebuild.BuildSpec.fromSourceFilename('infra/buildspec.yml'),
       environment: {
-        buildImage: codebuild.LinuxBuildImage.STANDARD_7_0,
+        buildImage: codebuild.LinuxArmBuildImage.AMAZON_LINUX_2_STANDARD_3_0,
+        computeType: codebuild.ComputeType.SMALL, // ARM64環境用のコンピュートタイプ
         privileged: true, // Docker build / push に必要
       },
       environmentVariables: {

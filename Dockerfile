@@ -1,5 +1,5 @@
-# Node.js 20の最新LTSイメージを使用（ARM64対応）
-FROM --platform=linux/arm64 node:20-alpine
+# Node.js 20の最新LTSイメージを使用
+FROM node:20-alpine
 
 # 作業ディレクトリを設定
 WORKDIR /app
